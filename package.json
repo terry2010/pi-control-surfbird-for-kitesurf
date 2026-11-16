@@ -1,0 +1,62 @@
+{
+  "name": "pi-control-surfbird-for-kitesurf",
+  "version": "0.1.0",
+  "description": "Pi package: AI agent controls a Kitesurf/surfbird browser engine over CDP — 28 surfbird_* tools with per-session isolation, semantic snapshots, screenshots/PDF. Shares the host-independent src/cdp core with the DSH and OpenCode plugins.",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "kitesurf",
+    "surfbird",
+    "browser",
+    "cdp",
+    "automation",
+    "ai-agent",
+    "web-scraping"
+  ],
+  "license": "Apache-2.0",
+  "author": "terry2010",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/terry2010/pi-control-surfbird-for-kitesurf.git"
+  },
+  "files": [
+    "extensions",
+    "src",
+    "skills",
+    "README.md",
+    "i18n",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/surfbird.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "scripts": {
+    "test": "node --test test/unit/*.test.mjs",
+    "test:live": "node --test test/live/smoke.test.mjs",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "turndown": "^7.2.5",
+    "ws": "~8.22.2",
+    "yaml": "2.9.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.5.2",
+    "typebox": "^1.3.27",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22.19"
+  }
+}
