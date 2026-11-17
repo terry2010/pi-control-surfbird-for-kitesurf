@@ -59,11 +59,17 @@ export class SessionBrowser {
   /** 重连后置真：下一次 tab 解析失败报 browser_reset（retryable）而非 bad_tab_id。 */
   private justReset = false
 
-  private readonly opts: SessionOptions
+  private readonly optsSource: SessionOptions | (() => SessionOptions)
 
-  constructor(key: string, opts: SessionOptions = {}) {
+  constructor(key: string, opts: SessionOptions | (() => SessionOptions) = {}) {
     this.key = key
-    this.opts = opts
+    this.optsSource = opts
+  }
+
+  /** 连接参数惰性解析——传 getter 时（DSH 层接配置）改完端点/密钥，下次重连即生效；
+   *  若存快照值，session 会把失效配置一直用到被驱逐。 */
+  private opts(): SessionOptions {
+    return typeof this.optsSource === 'function' ? this.optsSource() : this.optsSource
   }
 
   touch(): void {
@@ -88,13 +94,15 @@ export class SessionBrowser {
   async ensureBrowser(): Promise<KitesurfBrowser> {
     if (this.browser?.isConnected) return this.browser
     const had = this.browser !== undefined
-    const b = new KitesurfBrowser(this.opts)
+    const opts = this.opts()
+    const b = new KitesurfBrowser(opts)
     try {
-      await b.connect(this.opts.endpoint!, this.opts.token)
+      await b.connect(opts.endpoint!, opts.token)
     } catch (e) {
       b.disconnect()
       const msg = e instanceof Error ? e.message : String(e)
-      throw new SurfbirdError('unreachable', `cannot reach Kitesurf endpoint ${this.opts.endpoint}: ${msg}`, { retryable: true })
+      // retryable:false——连不上的引擎立即重试没意义；标 true 会让模型空转重试烧 token
+      throw new SurfbirdError('unreachable', `cannot reach Kitesurf endpoint ${opts.endpoint}: ${msg}`, { retryable: false })
     }
     this.browser = b
     this.wire(b)
@@ -538,8 +546,9 @@ export class SessionRegistry {
     this.cfg = cfg
   }
 
-  /** 取或建 session（懒连接——构造不触网）。超限驱逐 idle，否则 too_many_sessions。 */
-  get(key: string, opts: SessionOptions = {}): SessionBrowser {
+  /** 取或建 session（懒连接——构造不触网）。opts 可传 getter：连接参数在每次
+   *  （重）连时解析——DSH 层配置热更后，旧 session 重连即吃到新端点。 */
+  get(key: string, opts: SessionOptions | (() => SessionOptions) = {}): SessionBrowser {
     const existing = this.map.get(key)
     if (existing) {
       existing.touch()

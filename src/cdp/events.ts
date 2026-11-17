@@ -31,6 +31,8 @@ function argText(a: JsonObject | undefined): string {
 export class ConsoleBuffer {
   private entries: ConsoleEntry[] = []
   private seq = 0
+  /** 因环形上限被丢弃的累计条数（read 的 dropped 字段）。 */
+  private droppedTotal = 0
   private readonly cap: number
   constructor(cap = DEFAULT_CAP) {
     this.cap = cap
@@ -39,7 +41,11 @@ export class ConsoleBuffer {
   push(type: string, text: string, extra?: { url?: string; line?: number }): void {
     this.seq += 1
     this.entries.push({ seq: this.seq, ts: Date.now(), type, text, ...extra })
-    if (this.entries.length > this.cap) this.entries.splice(0, this.entries.length - this.cap)
+    if (this.entries.length > this.cap) {
+      const drop = this.entries.length - this.cap
+      this.entries.splice(0, drop)
+      this.droppedTotal += drop
+    }
   }
 
   /** since：只返回 seq > since 的条目；only='errors' 过滤 error/exception/assert。 */
@@ -51,7 +57,7 @@ export class ConsoleBuffer {
       if (opts.only === 'errors' && !isErr(e.type)) return false
       return true
     })
-    return { entries: list, nextSince: this.seq, dropped: Math.max(0, this.entries.length - this.cap) }
+    return { entries: list, nextSince: this.seq, dropped: this.droppedTotal }
   }
 
   clear(): void {
@@ -150,11 +156,12 @@ export class NetworkBuffer {
       return pub
     })
     const nextIndex = this.order.length
+    const total = this.order.length
     if (opts.clear) {
       this.byId.clear()
       this.order = []
     }
-    return { entries, nextIndex, total: this.order.length }
+    return { entries, nextIndex, total }
   }
 
   /** 进行中的请求数（requestWillBeSent 后未见 finished/failed）。networkidle 判定用。 */

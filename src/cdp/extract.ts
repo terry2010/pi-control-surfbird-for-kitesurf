@@ -31,7 +31,8 @@ function loadReadability(): string {
 let TurndownService: any
 function turndown(): any {
   if (!TurndownService) {
-    TurndownService = require('turndown')
+    // ESM 下没有裸 require——必须走上面 createRequire 的 req（曾经写错导致 extract 全挂）
+    TurndownService = req('turndown')
     if (TurndownService.default) TurndownService = TurndownService.default
   }
   return new TurndownService({ headingStyle: 'atx' })

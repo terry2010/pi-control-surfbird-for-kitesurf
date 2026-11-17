@@ -102,8 +102,14 @@ function ok(data: JsonValue): JsonValue {
   return { ok: true, data: clean as JsonValue }
 }
 
+/** 连接类错误的模型指引：引擎没起来时立刻重试只是烧 token，必须先把人引去配置。 */
+const CONN_HINT = 'engine unreachable — do NOT retry surfbird_* calls in a loop. Tell the user to start the Kitesurf engine or fix endpoint/token in ~/.pi/agent/surfbird.json (or .pi/surfbird.json for a trusted project), then re-check with surfbird_status.'
+
 function fail(e: unknown): JsonValue {
   if (e instanceof SurfbirdError) {
+    if (e.code === 'unreachable' || e.code === 'not_configured') {
+      return { ok: false, error: { code: e.code, message: e.message, retryable: false, hint: CONN_HINT } }
+    }
     return { ok: false, error: { code: e.code, message: e.message, retryable: e.retryable } }
   }
   if (isBrowserResetError(e)) {
@@ -142,6 +148,17 @@ function toResult(value: JsonValue): AgentToolResult {
   return {
     content: [{ type: 'text', text: typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value)) }],
     details: isRecord(value) ? (stripUndef(value) as JsonValue) : {},
+  }
+}
+
+/** 导航 URL 白名单：http/https/about。data:/javascript:/file: 一律拒绝——
+ *  data: 会把任意文本渲染成页面内容（可被 prompt-injection 当成"打开这个链接"投毒），
+ *  javascript:/file: 更不能放。navigate 与 new_tab 共用同一校验，别在一处漏掉。 */
+function assertNavUrl(url: string): void {
+  let protocol = ''
+  try { protocol = new URL(url).protocol } catch { /* 相对 URL 交给引擎判定 */ }
+  if (protocol && !['http:', 'https:', 'about:'].includes(protocol)) {
+    throw new SurfbirdError('cdp_error', `unsupported URL scheme: ${protocol} (allowed: http/https/about)`)
   }
 }
 
@@ -219,6 +236,7 @@ const TOOLS: ToolDef[] = [
     },
     run: async (sess, args, exec) => {
       const url = strArg(args.url)
+      if (url) assertNavUrl(url)
       const tab = await sess.newTab(url)
       const wait = strArg(args.wait) ?? (url ? 'load' : 'none')
       if (url && wait !== 'none') {
@@ -260,11 +278,7 @@ const TOOLS: ToolDef[] = [
     },
     run: async (sess, args, exec) => {
       const url = String(args.url)
-      let protocol = ''
-      try { protocol = new URL(url).protocol } catch { /* relative/about: 交给引擎 */ }
-      if (protocol && !['http:', 'https:', 'about:', 'data:'].includes(protocol)) {
-        throw new SurfbirdError('cdp_error', `unsupported URL scheme: ${protocol} (allowed: http/https/about/data)`)
-      }
+      assertNavUrl(url)
       const res = await sess.navigate(url, strArg(args.tabId))
       const wait = strArg(args.wait) ?? 'load'
       if (wait !== 'none') {
@@ -869,7 +883,8 @@ export function registerSurfbirdTools(pi: ExtensionAPI, deps: ToolsDeps): void {
         const exec: ExecCtx = { signal, sessionID: key }
         let sess: SessionBrowser
         try {
-          sess = deps.registry.get(key, deps.sessionOpts())
+          // 传 getter 而非快照：配置热更后，既有 session 的下一次（重）连即生效新端点/密钥
+          sess = deps.registry.get(key, deps.sessionOpts)
         } catch (e) {
           return toResult(fail(e))
         }

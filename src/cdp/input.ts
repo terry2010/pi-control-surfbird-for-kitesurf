@@ -336,8 +336,6 @@ export async function scroll(sess: SessionBrowser, r: ResolvedTab, opts: { delta
   const p = { x: 400, y: 300 }
   try {
     const vp = await sess.cdp('Page.getLayoutMetrics', {}, { sessionId: r.sessionId, signal: opts.signal })
-    const c = ((vp.cssContentSize ?? vp.contentSize ?? {}) as JsonObject)
-    void c
     const layout = (vp.layoutViewport ?? {}) as JsonObject
     if (typeof layout.clientWidth === 'number' && typeof layout.clientHeight === 'number') {
       p.x = Math.round(layout.clientWidth / 2)
