@@ -1,6 +1,6 @@
 {
   "name": "pi-control-surfbird-for-kitesurf",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "description": "Pi package: AI agent controls a Kitesurf/surfbird browser engine over CDP — 28 surfbird_* tools with per-session isolation, semantic snapshots, screenshots/PDF. Shares the host-independent src/cdp core with the DSH and OpenCode plugins.",
   "type": "module",
   "keywords": [

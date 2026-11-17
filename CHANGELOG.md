@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-17
+
+### Fixed
+
+- Synced shared core from `dsh-control-surfbird-for-kitesurf` 0.6.0:
+  `surfbird_extract` no longer crashes on ESM (`require` → `createRequire`),
+  config hot-updates apply on an existing session's next (re)connect,
+  `unreachable` errors are `retryable:false`, and the network/console
+  counters report real values.
+- `not_configured`/`unreachable` failures now attach a hint pointing the
+  user at `~/.pi/agent/surfbird.json` instead of inviting model retry loops.
+
+### Security
+
+- `surfbird_navigate`/`surfbird_new_tab` accept only `http`/`https`/`about`
+  URLs — `data:` was dropped (prompt-injection surface), and
+  `surfbird_new_tab` previously applied no scheme check at all.
+
 ## [0.1.0] - 2026-11-23
 
 ### Added
